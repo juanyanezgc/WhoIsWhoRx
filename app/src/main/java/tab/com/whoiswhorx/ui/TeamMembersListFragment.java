@@ -129,13 +129,15 @@ public class TeamMembersListFragment extends ListFragment {
 
     private void downloadTeamMembers() {
         mCompositeSubscription.add(fetchTeamMembers()
+                .map(HtmlParser::parseTeamMembers)
+                .doOnNext(this::persistMembers)
                 .onErrorResumeNext(this::handleError)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(this::displayMembers));
     }
 
-    private Observable<List<TeamMember>> fetchTeamMembers() {
+    private Observable<Document> fetchTeamMembers() {
         return Observable.create(subscriber -> {
             try {
                 ConnectivityManager connMgr = (ConnectivityManager) getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -144,10 +146,7 @@ public class TeamMembersListFragment extends ListFragment {
                 if (networkInfo != null && networkInfo.isConnected()) {
                     Debug.logInfo("[Thread: " + Thread.currentThread().getName() + "] Fetching team members");
                     Document document = Jsoup.connect(TEAM_MEMBER_LIST_URL).get();
-                    List<TeamMember> teamMembers = HtmlParser.parseTeamMembers(document);
-                    subscriber.onNext(teamMembers);
-                    DBManager dbManager = new DBManager(getActivity());
-                    dbManager.saveTeamMembers(teamMembers);
+                    subscriber.onNext(document);
                 } else {
                     subscriber.onError(new CustomException(NETWORK, "No internet connection"));
                 }
@@ -176,6 +175,11 @@ public class TeamMembersListFragment extends ListFragment {
             DBManager dbManager = new DBManager(getActivity());
             subscriber.onNext(dbManager.getTeamMembers());
         });
+    }
+
+    private void persistMembers(List<TeamMember> teamMembers) {
+        DBManager dbManager = new DBManager(getActivity());
+        dbManager.saveTeamMembers(teamMembers);
     }
 
 
