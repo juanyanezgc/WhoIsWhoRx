@@ -58,7 +58,6 @@ public class DBManager {
      * @param teamMembers List of team members to save
      */
     public void saveTeamMembers(List<TeamMember> teamMembers) {
-        Debug.logDebug("[Thread: " + Thread.currentThread().getName() + "] " +"Saving team members in the database");
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
 
         db.beginTransaction();
@@ -107,7 +106,6 @@ public class DBManager {
      * @return List with all the team members
      */
     public List<TeamMember> getTeamMembers() {
-        Debug.logDebug("[Thread: " + Thread.currentThread().getName() + "] " +"Loading data from database ");
         SQLiteDatabase db = mDbHelper.getReadableDatabase();
 
         Cursor teamMembersCursor = db.rawQuery(SQL_SELECT_ALL, null);

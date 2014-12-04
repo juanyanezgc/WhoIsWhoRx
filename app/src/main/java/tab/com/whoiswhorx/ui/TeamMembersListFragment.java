@@ -1,18 +1,20 @@
 package tab.com.whoiswhorx.ui;
 
-import android.app.Activity;
 import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
-import android.support.v4.app.ListFragment;
+import android.support.v4.app.Fragment;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.ListAdapter;
-import android.widget.ListView;
+import android.view.ViewGroup;
 import android.widget.Toast;
+import android.widget.ViewSwitcher;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -21,6 +23,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import butterknife.ButterKnife;
+import butterknife.InjectView;
 import rx.Observable;
 import rx.android.observables.AndroidObservable;
 import rx.schedulers.Schedulers;
@@ -30,27 +34,25 @@ import tab.com.whoiswhorx.ddbb.DBManager;
 import tab.com.whoiswhorx.exceptions.CustomException;
 import tab.com.whoiswhorx.model.TeamMember;
 import tab.com.whoiswhorx.parser.HtmlParser;
-import tab.com.whoiswhorx.utils.Debug;
 
 import static tab.com.whoiswhorx.exceptions.CustomException.ErrorType.JSOUP;
 import static tab.com.whoiswhorx.exceptions.CustomException.ErrorType.NETWORK;
 import static tab.com.whoiswhorx.utils.Constants.TEAM_MEMBER_LIST_URL;
 
 
-public class TeamMembersListFragment extends ListFragment {
-
+/**
+ * Created by juanyanezgc on 04/12/14.
+ */
+public class TeamMembersListFragment extends Fragment {
     private static final String TEAM_MEMBERS_KEY = "teamMembers";
 
-    private List<TeamMember> mTeamMembers;
+    @InjectView(R.id.list_team_members)
+    RecyclerView mTeamMembersList;
+    @InjectView(R.id.content_switcher)
+    ViewSwitcher mContentSwitcher;
+
     private CompositeSubscription mCompositeSubscription;
-
-
-    public interface TeamMembersListFragmentListener {
-        public void onTeamMemberPressed(TeamMember teamMember);
-    }
-
-    private TeamMembersListFragmentListener mListener;
-
+    private List<TeamMember> mTeamMembers;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -60,12 +62,25 @@ public class TeamMembersListFragment extends ListFragment {
     }
 
     @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.fragment_team_members_list, container, false);
+        ButterKnife.inject(this, view);
+        LinearLayoutManager layoutManager = new LinearLayoutManager(getActivity());
+        layoutManager.setOrientation(LinearLayoutManager.VERTICAL);
+        mTeamMembersList.setLayoutManager(new LinearLayoutManager(getActivity()));
+        mTeamMembersList.addItemDecoration(new DividerDecoration(getActivity()));
+        return view;
+    }
+
+    @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
         if (savedInstanceState == null) {
             if (mTeamMembers == null) {
                 downloadTeamMembers();
+            } else {
+                fillListData();
             }
         } else {
             mTeamMembers = savedInstanceState.getParcelableArrayList(TEAM_MEMBERS_KEY);
@@ -75,23 +90,6 @@ public class TeamMembersListFragment extends ListFragment {
                 fillListData();
             }
         }
-    }
-
-    @Override
-    public void onAttach(Activity activity) {
-        super.onAttach(activity);
-        try {
-            mListener = (TeamMembersListFragmentListener) activity;
-        } catch (ClassCastException e) {
-            throw new ClassCastException(activity.toString()
-                    + " must implement TeamMembersListFragmentListener");
-        }
-    }
-
-    @Override
-    public void onDetach() {
-        super.onDetach();
-        mListener = null;
     }
 
     @Override
@@ -109,17 +107,10 @@ public class TeamMembersListFragment extends ListFragment {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        setListShown(false);
+        mContentSwitcher.setDisplayedChild(0);
         downloadTeamMembers();
 
         return true;
-    }
-
-    @Override
-    public void onListItemClick(ListView l, View v, int position, long id) {
-        if (mListener != null) {
-            mListener.onTeamMemberPressed((TeamMember) getListAdapter().getItem(position));
-        }
     }
 
     @Override
@@ -146,7 +137,6 @@ public class TeamMembersListFragment extends ListFragment {
                 NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
 
                 if (networkInfo != null && networkInfo.isConnected()) {
-                    Debug.logInfo("[Thread: " + Thread.currentThread().getName() + "] Fetching team members");
                     Document document = Jsoup.connect(TEAM_MEMBER_LIST_URL).get();
                     subscriber.onNext(document);
                 } else {
@@ -162,7 +152,6 @@ public class TeamMembersListFragment extends ListFragment {
     private Observable<List<TeamMember>> handleError(Throwable e) {
         getActivity().runOnUiThread(() -> {
             CustomException error = (CustomException) e;
-            Debug.logError("[" + Thread.currentThread().getName() + "] " + e.getMessage());
             switch (error.getErrorType()) {
                 case JSOUP:
                     Toast.makeText(getActivity(), R.string.parsing_error, Toast.LENGTH_LONG).show();
@@ -191,9 +180,8 @@ public class TeamMembersListFragment extends ListFragment {
     }
 
     private void fillListData() {
-        ListAdapter adapter = new TeamMemberListAdapter(getActivity(), mTeamMembers);
-        setListAdapter(adapter);
-        setListShown(true);
+        TeamMemberListAdapter adapter = new TeamMemberListAdapter(mTeamMembers);
+        mContentSwitcher.setDisplayedChild(1);
+        mTeamMembersList.setAdapter(adapter);
     }
-
 }

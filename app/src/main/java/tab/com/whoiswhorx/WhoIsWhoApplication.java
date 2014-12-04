@@ -23,4 +23,8 @@ public class WhoIsWhoApplication extends Application {
         return sImageLoader;
     }
 
+    public static WhoIsWhoApplication get(){
+        return sApp;
+    }
+
 }

@@ -27,8 +27,6 @@ public class HtmlParser {
      * @return List with all parsed team members
      */
     public static List<TeamMember> parseTeamMembers(Document htmlDocument) {
-        Debug.logInfo("[Thread: " + Thread.currentThread().getName() + "] " +"Parsing team member html");
-
         List<TeamMember> teamMembers = new ArrayList<>();
         Element teamMembersSection = htmlDocument.body().getElementById(TEAM_MEMBERS_SECTION_KEY);
         Elements teamMembersHtml = teamMembersSection.getElementsByClass(TEAM_MEMBER_KEY);
