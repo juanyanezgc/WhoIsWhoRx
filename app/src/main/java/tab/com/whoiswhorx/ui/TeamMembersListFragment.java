@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import rx.Observable;
-import rx.android.schedulers.AndroidSchedulers;
+import rx.android.observables.AndroidObservable;
 import rx.schedulers.Schedulers;
 import rx.subscriptions.CompositeSubscription;
 import tab.com.whoiswhorx.R;
@@ -56,12 +56,12 @@ public class TeamMembersListFragment extends ListFragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setHasOptionsMenu(true);
+        mCompositeSubscription = new CompositeSubscription();
     }
 
     @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        mCompositeSubscription = new CompositeSubscription();
 
         if (savedInstanceState == null) {
             if (mTeamMembers == null) {
@@ -95,8 +95,8 @@ public class TeamMembersListFragment extends ListFragment {
     }
 
     @Override
-    public void onDestroyView() {
-        super.onDestroyView();
+    public void onDestroy() {
+        super.onDestroy();
         mCompositeSubscription.unsubscribe();
     }
 
@@ -128,16 +128,18 @@ public class TeamMembersListFragment extends ListFragment {
     }
 
     private void downloadTeamMembers() {
-        mCompositeSubscription.add(fetchTeamMembers()
+        Observable<List<TeamMember>> fetchTeamMembersObservable = fetchTeamMembers()
                 .map(HtmlParser::parseTeamMembers)
                 .doOnNext(this::persistMembers)
                 .onErrorResumeNext(this::handleError)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
+                .subscribeOn(Schedulers.io());
+
+        mCompositeSubscription.add(AndroidObservable.bindFragment(this, fetchTeamMembersObservable)
                 .subscribe(this::displayMembers));
     }
 
     private Observable<Document> fetchTeamMembers() {
+
         return Observable.create(subscriber -> {
             try {
                 ConnectivityManager connMgr = (ConnectivityManager) getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
